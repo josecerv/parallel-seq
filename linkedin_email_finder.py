@@ -3,9 +3,13 @@ import requests
 import time
 import os
 from typing import Optional, Dict
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Anymail Finder API configuration
-API_KEY = os.environ.get('ANYMAIL_API_KEY', '')  # Set this environment variable
+API_KEY = os.environ.get('ANYMAIL_API_KEY', '')  # Loaded from .env file
 API_BASE_URL = 'https://api.anymail.io/v1'
 
 def get_email_from_linkedin(linkedin_url: str) -> Dict:

@@ -13,12 +13,12 @@ This project processes LinkedIn follower data to find email addresses using the 
 
 1. Install dependencies:
 ```bash
-pip install pandas requests
+pip install -r requirements.txt
 ```
 
-2. Set your Anymail Finder API key:
-```bash
-export ANYMAIL_API_KEY='your_api_key_here'
+2. Create a `.env` file with your Anymail Finder API key:
+```
+ANYMAIL_API_KEY=your_api_key_here
 ```
 
 ## Usage
