@@ -6,6 +6,7 @@ import sys
 from typing import Optional, Dict
 from dotenv import load_dotenv
 from datetime import datetime
+from urllib.parse import quote, unquote
 
 # Load environment variables from .env file
 load_dotenv()
@@ -78,6 +79,9 @@ def get_email_from_linkedin(linkedin_url: str) -> Dict:
                 }
         elif response.status_code == 400:
             error_msg = response.json().get("message", "Bad request")
+            # Log URLs with underscores or dashes that fail
+            if '_' in linkedin_url or '-' in linkedin_url.split('/')[-1]:
+                print(f"   DEBUG: URL with special chars failed: {linkedin_url}")
             return {'email': '', 'email_validation': '', 'title': '', 'company': '', 'email_error': f'BAD_REQUEST: {error_msg}'}
         elif response.status_code == 401:
             return {'email': '', 'email_validation': '', 'title': '', 'company': '', 'email_error': 'UNAUTHORIZED: Check API key'}
@@ -98,6 +102,16 @@ def print_progress_bar(current, total, prefix='', suffix='', length=50):
     bar = '█' * filled + '░' * (length - filled)
     sys.stdout.write(f'\r{prefix} |{bar}| {percent:.1f}% {suffix}')
     sys.stdout.flush()
+
+def save_checkpoint(df, checkpoint_file='checkpoint.csv'):
+    """Save progress checkpoint"""
+    df.to_csv(checkpoint_file, index=False)
+
+def load_checkpoint(checkpoint_file='checkpoint.csv'):
+    """Load checkpoint if exists"""
+    if os.path.exists(checkpoint_file):
+        return pd.read_csv(checkpoint_file), True
+    return None, False
 
 def process_linkedin_profiles():
     """
@@ -122,17 +136,33 @@ def process_linkedin_profiles():
     print(f"✓ Loaded {len(katy_df):,} records from katy-followers.csv")
     print(f"✓ Loaded {len(sophia_df):,} records from sophia-followers.csv")
     
-    # Remove duplicates - filter out people in sophia_df from katy_df
-    sophia_profiles = set(sophia_df['profileLink'])
-    katy_filtered_df = katy_df[~katy_df['profileLink'].isin(sophia_profiles)].copy()
-    print(f"\n📊 After removing duplicates: {len(katy_filtered_df):,} unique records remain")
+    # Check for existing checkpoint
+    checkpoint_file = 'checkpoint.csv'
+    checkpoint_df, has_checkpoint = load_checkpoint(checkpoint_file)
     
-    # Add email columns
-    katy_filtered_df['email'] = ''
-    katy_filtered_df['email_validation'] = ''
-    katy_filtered_df['title'] = ''
-    katy_filtered_df['company'] = ''
-    katy_filtered_df['email_error'] = ''
+    if has_checkpoint:
+        print(f"\n🔄 Found checkpoint file with {len(checkpoint_df):,} records")
+        print("Resume from checkpoint? (y/n): ", end='')
+        if input().strip().lower() == 'y':
+            katy_filtered_df = checkpoint_df.copy()
+            # Count already processed
+            already_processed = katy_filtered_df['email_error'].notna().sum()
+            print(f"📌 Resuming... {already_processed:,} records already processed")
+        else:
+            # Remove duplicates - filter out people in sophia_df from katy_df
+            sophia_profiles = set(sophia_df['profileLink'])
+            katy_filtered_df = katy_df[~katy_df['profileLink'].isin(sophia_profiles)].copy()
+            print(f"\n📊 After removing duplicates: {len(katy_filtered_df):,} unique records remain")
+    else:
+        # Remove duplicates - filter out people in sophia_df from katy_df
+        sophia_profiles = set(sophia_df['profileLink'])
+        katy_filtered_df = katy_df[~katy_df['profileLink'].isin(sophia_profiles)].copy()
+        print(f"\n📊 After removing duplicates: {len(katy_filtered_df):,} unique records remain")
+    
+    # Add email columns if they don't exist
+    for col in ['email', 'email_validation', 'title', 'company', 'email_error']:
+        if col not in katy_filtered_df.columns:
+            katy_filtered_df[col] = ''
     
     # Process each profile to get emails
     total_profiles = len(katy_filtered_df)
@@ -145,6 +175,11 @@ def process_linkedin_profiles():
     
     for idx in range(total_profiles):
         row = katy_filtered_df.iloc[idx]
+        
+        # Skip if already processed
+        if pd.notna(row.get('email_error')) and row.get('email_error') != '':
+            continue
+        
         profile_link = row['profileLink']
         full_name = row['fullName']
         
@@ -193,6 +228,11 @@ def process_linkedin_profiles():
                 stats['errors'] += 1
                 print(f"⚠️  Error: {error}")
         
+        # Save checkpoint every 10 records
+        if stats['total_processed'] % 10 == 0:
+            save_checkpoint(katy_filtered_df, checkpoint_file)
+            print(f"💾 Checkpoint saved")
+        
         # Show statistics every 50 records
         if stats['total_processed'] % 50 == 0:
             print(f"\n📈 Statistics Update:")
@@ -233,4 +273,5 @@ if __name__ == "__main__":
         result_df = process_linkedin_profiles()
     except KeyboardInterrupt:
         print("\n\n⚠️  Process interrupted by user")
-        print("Run the script again to start from the beginning")
+        print("💾 Progress saved in checkpoint.csv")
+        print("Run the script again to resume from checkpoint")
