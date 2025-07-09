@@ -11,12 +11,17 @@ This project processes LinkedIn follower data to find email addresses using the 
 
 ## Setup
 
-1. Install dependencies:
+1. Install Poetry (if not already installed):
 ```bash
-pip install -r requirements.txt
+curl -sSL https://install.python-poetry.org | python3 -
 ```
 
-2. Create a `.env` file with your Anymail Finder API key:
+2. Install dependencies:
+```bash
+poetry install
+```
+
+3. Create a `.env` file with your Anymail Finder API key:
 ```
 ANYMAIL_API_KEY=your_api_key_here
 ```
@@ -25,7 +30,7 @@ ANYMAIL_API_KEY=your_api_key_here
 
 Run the script:
 ```bash
-python linkedin_email_finder.py
+poetry run python linkedin_email_finder.py
 ```
 
 This will:

@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "linkedin-email-finder"
+version = "0.1.0"
+description = "Find emails for LinkedIn profiles using Anymail Finder API"
+authors = ["LinkedIn Email Finder"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pandas = "^2.2.0"
+requests = "^2.32.0"
+python-dotenv = "^1.0.0"
+
+[tool.poetry.group.dev.dependencies]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
